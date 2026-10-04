@@ -22,8 +22,8 @@ export const DEFAULT_TOLERANCES: ToleranceConfig = {
 
 export const DEFAULT_STREAM_CONFIG: StreamConfig = {
   streamUrl: 'ws://192.168.137.129:8080',
-  autoConnect: true,
-  cameraMode: 'AUTO',
+  autoConnect: false,
+  cameraMode: 'MOCK',
 };
 
 export const settingsService = {

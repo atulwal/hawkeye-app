@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
+import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import React, { useEffect, useState } from 'react';
 import {
   Animated,
@@ -10,12 +10,6 @@ import {
 } from 'react-native';
 import Svg, { Line, Path, Rect } from 'react-native-svg';
 import { COLORS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
-import {
-  cameraStreamService,
-  StreamFrame,
-  StreamStats,
-  StreamStatus,
-} from '../../services/cameraStreamService';
 import { settingsService } from '../../services/settingsService';
 import { Billet, getDisplayedId } from '../../types/inspection';
 
@@ -24,38 +18,12 @@ interface LiveCameraFeedProps {
   onSnapshotTaken?: (uri: string) => void;
 }
 
-export const LiveCameraFeed: React.FC<LiveCameraFeedProps> = ({
-  billet,
-}) => {
-  const [streamFrame, setStreamFrame] = useState<StreamFrame | null>(null);
-  const [streamStatus, setStreamStatus] = useState<StreamStatus>(cameraStreamService.getStatus());
-  const [stats, setStats] = useState<StreamStats>(cameraStreamService.getStats());
-  const [forcedMode, setForcedMode] = useState<'AUTO' | 'WEBCAM' | 'MOCK'>('AUTO');
+export const LiveCameraFeed: React.FC<LiveCameraFeedProps> = ({ billet }) => {
+  const [permission, requestPermission] = useCameraPermissions();
 
-  // Animation for mock billet sliding
-  const [slideAnim] = useState(() => new Animated.Value(-120));
-  const [opacityAnim] = useState(() => new Animated.Value(0.4));
+  // Animation for laser scanline
   const [pulseAnim] = useState(() => new Animated.Value(1));
-
-  useEffect(() => {
-    settingsService.getStreamConfig().then((cfg) => {
-      setForcedMode(cfg.cameraMode || 'AUTO');
-    });
-
-    const unsubFrame = cameraStreamService.subscribe((frame) => {
-      setStreamFrame(frame);
-    });
-
-    const unsubStatus = cameraStreamService.subscribeStatus((status, newStats) => {
-      setStreamStatus(status);
-      setStats(newStats);
-    });
-
-    return () => {
-      unsubFrame();
-      unsubStatus();
-    };
-  }, []);
+  const [scanAnim] = useState(() => new Animated.Value(0));
 
   // Pulse animation for live recording dot
   useEffect(() => {
@@ -77,33 +45,25 @@ export const LiveCameraFeed: React.FC<LiveCameraFeedProps> = ({
     return () => pulse.stop();
   }, [pulseAnim]);
 
-  // Motion animation when a new billet arrives in mock mode
+  // Scanline laser animation
   useEffect(() => {
-    if (billet) {
-      slideAnim.setValue(-80);
-      opacityAnim.setValue(0.5);
-      Animated.parallel([
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          friction: 8,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
+    const scan = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanAnim, {
           toValue: 1,
-          duration: 350,
+          duration: 2200,
           useNativeDriver: true,
         }),
-      ]).start();
-    }
-  }, [billet, slideAnim, opacityAnim]);
-
-  const hasActiveWebcam = Boolean(
-    streamFrame && (streamStatus === 'CONNECTED' || Boolean(streamFrame.uri))
-  );
-
-  const isLiveMode =
-    forcedMode === 'WEBCAM' || (forcedMode === 'AUTO' && hasActiveWebcam);
+        Animated.timing(scanAnim, {
+          toValue: 0,
+          duration: 2200,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    scan.start();
+    return () => scan.stop();
+  }, [scanAnim]);
 
   const statusColor = billet
     ? {
@@ -116,17 +76,6 @@ export const LiveCameraFeed: React.FC<LiveCameraFeedProps> = ({
   const displayedId = billet ? getDisplayedId(billet) : 'SCANNING...';
   const lengthStr = billet ? `${billet.length.value.toFixed(1)} mm` : '-- mm';
 
-  const toggleMode = () => {
-    const nextMode = isLiveMode ? 'MOCK' : 'AUTO';
-    setForcedMode(nextMode);
-    settingsService.getStreamConfig().then((cfg) => {
-      settingsService.saveStreamConfig({ ...cfg, cameraMode: nextMode });
-    });
-    if (nextMode === 'AUTO' && streamStatus === 'OFFLINE') {
-      cameraStreamService.connect();
-    }
-  };
-
   return (
     <View style={styles.container}>
       {/* Header bar on camera card */}
@@ -137,124 +86,57 @@ export const LiveCameraFeed: React.FC<LiveCameraFeedProps> = ({
               styles.recordingDot,
               {
                 opacity: pulseAnim,
-                backgroundColor: isLiveMode ? '#10B981' : COLORS.fail,
+                backgroundColor: permission?.granted ? '#10B981' : '#38BDF8',
               },
             ]}
           />
-          <Text style={styles.cardTopTitle}>
-            {isLiveMode ? 'LIVE WEBCAM STREAM' : 'SIMULATED CONVEYOR 01'}
-          </Text>
-        </View>
-
-        <View style={styles.topRightControls}>
-          <Text style={styles.cardTopFps}>
-            {isLiveMode
-              ? `${stats.fps || 30} FPS · ${stats.latencyMs ? `${stats.latencyMs}ms` : 'SYNC'}`
-              : '60 FPS · 1080p HD'}
-          </Text>
-          <TouchableOpacity
-            style={[
-              styles.modeToggleBtn,
-              isLiveMode ? styles.modeToggleActive : styles.modeToggleSim,
-            ]}
-            onPress={toggleMode}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name={isLiveMode ? 'videocam' : 'cube-outline'}
-              size={12}
-              color={isLiveMode ? '#38BDF8' : '#94A3B8'}
-              style={{ marginRight: 3 }}
-            />
-            <Text style={[styles.modeToggleText, isLiveMode && styles.modeToggleTextActive]}>
-              {isLiveMode ? 'LIVE' : 'SIM'}
-            </Text>
-          </TouchableOpacity>
+          <Text style={styles.cardTopTitle}>LIVE INSPECTION CAMERA 01</Text>
         </View>
       </View>
 
       {/* Main Viewport */}
       <View style={styles.viewport}>
-        {/* Case 1: LIVE WEBCAM VIDEO FEED */}
-        {isLiveMode && streamFrame ? (
+        {/* Native Camera Viewport */}
+        {permission?.granted ? (
           <View style={StyleSheet.absoluteFill}>
-            <Image
-              source={{ uri: streamFrame.uri }}
-              style={styles.liveVideoImage}
-              contentFit="cover"
-              transition={0}
-              cachePolicy="none"
+            <CameraView
+              style={StyleSheet.absoluteFill}
+              facing="back"
             />
-            {/* Subtle camera scanline overlay */}
-            <View style={styles.videoScanlineOverlay} />
-          </View>
-        ) : (
-          /* Case 2: SIMULATED CONVEYOR GRAPHIC */
-          <>
-            <Svg height="100%" width="100%" style={StyleSheet.absoluteFill}>
-              {/* Grid guidelines */}
-              <Line x1="0" y1="50%" x2="100%" y2="50%" stroke="#16202E" strokeWidth="1" strokeDasharray="4 4" />
-              <Line x1="50%" y1="0" x2="50%" y2="100%" stroke="#16202E" strokeWidth="1" strokeDasharray="4 4" />
-              
-              {/* Bottom rollers */}
-              {[20, 60, 100, 140, 180, 220, 260, 300, 340].map((x) => (
-                <Rect
-                  key={x}
-                  x={x}
-                  y="160"
-                  width="24"
-                  height="35"
-                  fill="#131B26"
-                  stroke="#1E293B"
-                  strokeWidth="1"
-                  rx="2"
-                />
-              ))}
-            </Svg>
-
-            {/* Simulated Billet Object */}
-            {billet && (
-              <Animated.View
-                style={[
-                  styles.billetMotionWrapper,
-                  {
-                    transform: [{ translateX: slideAnim }],
-                    opacity: opacityAnim,
-                  },
-                ]}
-              >
-                {/* Steel Billet Graphic */}
-                <View style={styles.billetBody}>
-                  <View style={styles.steelHighlight} />
-                  <View style={styles.steelStripe1} />
-                  <View style={styles.steelStripe2} />
-                  <View style={styles.billetIdPill}>
-                    <Text style={styles.billetIdText}>{displayedId}</Text>
-                  </View>
-                </View>
-              </Animated.View>
-            )}
-          </>
-        )}
-
-        {/* TOP STATUS BADGES OVERLAY */}
-        <View style={styles.overlayTop}>
-          <View style={[styles.statusChip, isLiveMode && styles.statusChipLive]}>
-            <View
+            {/* Animated Laser Scanning Line */}
+            <Animated.View
               style={[
-                styles.statusPulse,
-                { backgroundColor: isLiveMode ? '#34D399' : '#38BDF8' },
+                styles.laserScanline,
+                {
+                  transform: [
+                    {
+                      translateY: scanAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [10, 200],
+                      }),
+                    },
+                  ],
+                },
               ]}
             />
-            <Text style={[styles.statusChipText, isLiveMode && styles.statusChipTextLive]}>
-              {isLiveMode ? 'WEBCAM SYNCED' : 'MOCK ENGINE'}
+          </View>
+        ) : (
+          <View style={styles.permissionPromptContainer}>
+            <Ionicons name="camera-outline" size={38} color="#38BDF8" style={{ marginBottom: 10 }} />
+            <Text style={styles.permissionTitle}>Enable Device Camera</Text>
+            <Text style={styles.permissionSubtitle}>
+              Allow camera permission to inspect billets directly using your device hardware.
             </Text>
+            <TouchableOpacity
+              style={styles.permissionBtn}
+              onPress={requestPermission}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="shield-checkmark" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={styles.permissionBtnText}>ALLOW CAMERA ACCESS</Text>
+            </TouchableOpacity>
           </View>
-
-          <View style={styles.calibratedChip}>
-            <Text style={styles.calibratedText}>CALIBRATED 2.45 px/mm</Text>
-          </View>
-        </View>
+        )}
 
         {/* Precision Dimension Blueprint Overlay */}
         <View style={styles.dimensionWrapper}>
@@ -287,16 +169,6 @@ export const LiveCameraFeed: React.FC<LiveCameraFeedProps> = ({
             <Text style={styles.floatingIdText}>{displayedId}</Text>
           </View>
         </View>
-
-        {/* Offline notice when Webcam mode is active but stream is offline */}
-        {forcedMode === 'WEBCAM' && !hasActiveWebcam && (
-          <View style={styles.offlineBanner}>
-            <Ionicons name="warning-outline" size={14} color="#FBBF24" style={{ marginRight: 6 }} />
-            <Text style={styles.offlineText}>
-              Webcam feed offline. Start bridge server or switch to SIM.
-            </Text>
-          </View>
-        )}
       </View>
     </View>
   );
@@ -587,23 +459,68 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0.8,
   },
-  offlineBanner: {
+  laserScanline: {
     position: 'absolute',
-    bottom: 12,
-    backgroundColor: 'rgba(15, 23, 42, 0.92)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: '#38BDF8',
+    shadowColor: '#38BDF8',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+    zIndex: 10,
+  },
+  miniControlBtn: {
+    width: 28,
+    height: 28,
     borderRadius: 6,
+    backgroundColor: COLORS.surfaceSubtle,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  miniControlBtnActive: {
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    borderColor: '#FBBF24',
+  },
+  permissionPromptContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.lg,
+    backgroundColor: '#0F172A',
+  },
+  permissionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily: TYPOGRAPHY.fontFamily.mono,
+    marginBottom: 4,
+  },
+  permissionSubtitle: {
+    fontSize: 11,
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginBottom: 14,
+    lineHeight: 16,
+    maxWidth: 240,
+  },
+  permissionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#FBBF24',
-    zIndex: 20,
+    backgroundColor: COLORS.interactive,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    ...SHADOWS.sm,
   },
-  offlineText: {
-    color: '#FBBF24',
-    fontSize: 10,
+  permissionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
     fontFamily: TYPOGRAPHY.fontFamily.mono,
-    fontWeight: '600',
   },
 });

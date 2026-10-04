@@ -34,7 +34,13 @@
           "imageWidth": 76
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Hawkeye to access your camera for optical billet inspection."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

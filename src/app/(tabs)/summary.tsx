@@ -63,15 +63,38 @@ export default function QualitySummaryScreen() {
     };
   }, []);
 
-  // Compute metrics
+  // Compute metrics (overall & current hour)
   const total = history.length;
   const passCount = history.filter((b) => b.status === 'PASS').length;
   const reworkCount = history.filter((b) => b.status === 'REWORK').length;
   const failCount = history.filter((b) => b.status === 'FAIL').length;
 
-  const passRate = total > 0 ? ((passCount / total) * 100).toFixed(1) : '0.0';
   const reworkRate = total > 0 ? ((reworkCount / total) * 100).toFixed(1) : '0.0';
   const failRate = total > 0 ? ((failCount / total) * 100).toFixed(1) : '0.0';
+
+  // Current hour pass rate calculation (since the start of the current hour)
+  const now = new Date();
+  const currentHourStart = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    now.getHours(),
+    0,
+    0,
+    0
+  ).getTime();
+
+  // Billets inspected within the current clock hour (fallback to last 60m if empty)
+  const currentHourBillets = history.filter((b) => {
+    const t = new Date(b.timestamp).getTime();
+    return !isNaN(t) && t >= currentHourStart;
+  });
+
+  const currentHourTotal = currentHourBillets.length;
+  const currentHourPassCount = currentHourBillets.filter((b) => b.status === 'PASS').length;
+  const currentHourPassRate = currentHourTotal > 0
+    ? ((currentHourPassCount / currentHourTotal) * 100).toFixed(1)
+    : '0.0';
 
   // Compute defect counts
   const defectMap: Record<string, number> = {};
@@ -124,6 +147,10 @@ export default function QualitySummaryScreen() {
                   <Text style={styles.heroSubtitle}>PRODUCTION YIELD OVERVIEW</Text>
                   <Text style={styles.heroTotalCount}>{total} <Text style={styles.heroTotalUnit}>Billets</Text></Text>
                 </View>
+                <View style={styles.heroPassRateBadge}>
+                  <Text style={styles.heroPassRateLabel}>CURRENT HOUR PASS RATE</Text>
+                  <Text style={styles.heroPassRateValue}>{currentHourPassRate}%</Text>
+                </View>
               </View>
 
               <View style={styles.heroDivider} />
@@ -138,8 +165,8 @@ export default function QualitySummaryScreen() {
                   <Text style={styles.heroMetaValue}>120 ±1 mm</Text>
                 </View>
                 <View style={styles.heroMetaItem}>
-                  <Text style={styles.heroMetaLabel}>Min OCR Score</Text>
-                  <Text style={styles.heroMetaValueActive}>90% Target</Text>
+                  <Text style={styles.heroMetaLabel}>Current Hr Inspected</Text>
+                  <Text style={styles.heroMetaValueActive}>{currentHourTotal} Billets</Text>
                 </View>
               </View>
             </View>
@@ -149,7 +176,7 @@ export default function QualitySummaryScreen() {
               <StatMetricCard
                 label="Passed"
                 value={passCount}
-                subValue={`${passRate}%`}
+                subValue={`${currentHourPassRate}% (Current Hr)`}
                 variant="pass"
               />
               <StatMetricCard
@@ -223,6 +250,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#94A3B8',
+  },
+  heroPassRateBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignItems: 'flex-end',
+  },
+  heroPassRateLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    fontFamily: TYPOGRAPHY.fontFamily.mono,
+    color: '#34D399',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  heroPassRateValue: {
+    fontSize: 18,
+    fontWeight: '900',
+    fontFamily: TYPOGRAPHY.fontFamily.mono,
+    color: '#10B981',
   },
   heroDivider: {
     height: 1,

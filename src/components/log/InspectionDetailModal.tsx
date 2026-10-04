@@ -99,21 +99,19 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
             <View style={styles.sectionCard}>
               <View style={styles.sectionTitleRow}>
                 <Text style={styles.sectionTitle}>OPTICAL CHARACTER RECOGNITION</Text>
-                {!isEditingId && (
+                {isAdmin && !isEditingId && (
                   <TouchableOpacity
                     style={styles.editIdBtn}
                     onPress={handleStartEdit}
                     activeOpacity={0.7}
                   >
                     <Ionicons
-                      name={isAdmin ? 'pencil' : 'lock-closed-outline'}
-                      size={13}
+                      name="pencil"
+                      size={12}
                       color={COLORS.interactive}
                       style={{ marginRight: 4 }}
                     />
-                    <Text style={styles.editIdBtnText}>
-                      {isAdmin ? 'Edit ID' : 'Unlock to Edit'}
-                    </Text>
+                    <Text style={styles.editIdBtnText}>Edit ID</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -213,41 +211,12 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
                 <View style={styles.defectsList}>
                   {billet.defects.map((d, i) => (
                     <View key={i} style={styles.defectPill}>
-                      <Ionicons name="alert-circle" size={14} color={COLORS.rework} style={{ marginRight: 4 }} />
                       <Text style={styles.defectPillText}>{d}</Text>
                     </View>
                   ))}
                 </View>
               ) : (
                 <Text style={styles.noDefectsText}>No surface anomalies detected</Text>
-              )}
-            </View>
-
-            {/* Shift & Acknowledgement Audit */}
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>SYSTEM & SHIFT METADATA</Text>
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>Timestamp</Text>
-                <Text style={styles.metaValMono}>{new Date(billet.timestamp).toLocaleString()}</Text>
-              </View>
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>Processing Cycle</Text>
-                <Text style={styles.metaValMono}>{billet.processingTimeMs || 135} ms</Text>
-              </View>
-              {billet.status === 'FAIL' && (
-                <View style={styles.metaRow}>
-                  <Text style={styles.metaLabel}>Alert Status</Text>
-                  <Text
-                    style={[
-                      styles.metaValMono,
-                      { color: ack ? COLORS.textSecondary : COLORS.fail, fontWeight: '700' },
-                    ]}
-                  >
-                    {ack
-                      ? `Acknowledged by ${billet.acknowledgedBy} (${new Date(billet.acknowledgedAt!).toLocaleTimeString()})`
-                      : 'Unacknowledged Alarm'}
-                  </Text>
-                </View>
               )}
             </View>
           </ScrollView>
@@ -297,7 +266,38 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.md,
+    gap: 8,
+  },
+  adminLoginBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F2942',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  adminLoginBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  adminActiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: '#10B981',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  adminActiveText: {
+    color: '#059669',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    fontFamily: TYPOGRAPHY.fontFamily.mono,
   },
   closeBtn: {
     padding: 4,
@@ -469,19 +469,18 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   defectPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.reworkMuted,
-    borderWidth: 1,
-    borderColor: COLORS.reworkBorder,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    backgroundColor: COLORS.rework,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 6,
+    alignSelf: 'flex-start',
   },
   defectPillText: {
-    color: COLORS.rework,
+    color: '#FFFFFF',
     fontSize: TYPOGRAPHY.fontSize.xs,
-    fontWeight: '700',
+    fontWeight: '800',
+    fontFamily: TYPOGRAPHY.fontFamily.mono,
+    letterSpacing: 0.5,
   },
   noDefectsText: {
     fontSize: TYPOGRAPHY.fontSize.xs,

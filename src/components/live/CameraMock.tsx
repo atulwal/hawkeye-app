@@ -51,7 +51,6 @@ export const CameraMock: React.FC<CameraMockProps> = ({ billet }) => {
           <View style={styles.recordingDot} />
           <Text style={styles.cardTopTitle}>LIVE INSPECTION CAMERA 01</Text>
         </View>
-        <Text style={styles.cardTopFps}>60 FPS · 1080p HD</Text>
       </View>
 
       {/* Conveyor Viewport */}
