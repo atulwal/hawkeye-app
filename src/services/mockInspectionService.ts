@@ -62,11 +62,19 @@ function generateSeededInspections(count: number = 40): Billet[] {
         ackBy = 'Atulya';
         ackAt = new Date(now - timeOffsetMs + 12000).toISOString();
       }
-    } else if (rand < 0.20 || i === 35 || i === 20) {
+    } else if (rand < 0.28 || i === 35 || i === 20 || i === 8 || i === 15 || i === 28) {
       // REWORK case (within dimensional limits but defect or low OCR)
       status = 'REWORK';
-      if (Math.random() > 0.5) {
-        defects = ['Surface Scale Mark'];
+      const defectPool = [
+        'Surface Crack',
+        'Longitudinal Crack',
+        'Split End',
+        'Surface Scale Mark',
+        'Edge Burr',
+        'Surface Seam Defect',
+      ];
+      if (Math.random() > 0.35) {
+        defects = [defectPool[i % defectPool.length]];
       } else {
         ocrConfidence = Number((0.82 + Math.random() * 0.06).toFixed(2)); // low confidence < 0.90
       }
@@ -157,7 +165,7 @@ class MockInspectionService implements InspectionDataSource {
     if (forcedStatus === 'FAIL') {
       lengthVal = currentToleranceConfig.length.nominal + 8.2; // Exceeds tolerance
     } else if (forcedStatus === 'REWORK') {
-      defects = ['Minor Edge Burr'];
+      defects = ['Edge Burr'];
     } else if (forcedStatus === 'PASS') {
       lengthVal = currentToleranceConfig.length.nominal + 0.8;
       widthVal = currentToleranceConfig.width.nominal + 0.2;
@@ -168,9 +176,17 @@ class MockInspectionService implements InspectionDataSource {
       const rand = Math.random();
       if (rand < 0.07) {
         lengthVal = currentToleranceConfig.length.nominal + (Math.random() > 0.5 ? 7.6 : -8.1);
-      } else if (rand < 0.18) {
-        if (Math.random() > 0.5) {
-          defects = ['Surface Seam Defect'];
+      } else if (rand < 0.20) {
+        const liveDefectPool = [
+          'Surface Crack',
+          'Longitudinal Crack',
+          'Split End',
+          'Surface Scale Mark',
+          'Edge Burr',
+          'Surface Seam Defect',
+        ];
+        if (Math.random() > 0.35) {
+          defects = [liveDefectPool[Math.floor(Math.random() * liveDefectPool.length)]];
         } else {
           ocrConfidence = 0.85; // Low confidence
         }
@@ -248,6 +264,10 @@ class MockInspectionService implements InspectionDataSource {
       } else {
         result = result.filter((b) => b.status === filters.status);
       }
+    }
+
+    if (filters?.defect && filters.defect !== 'ALL') {
+      result = result.filter((b) => b.defects.includes(filters.defect!));
     }
 
     if (filters?.searchQuery && filters.searchQuery.trim().length > 0) {

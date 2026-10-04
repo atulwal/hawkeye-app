@@ -1,12 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { COLORS, SHADOWS, SPACING, TOUCH_TARGET, TYPOGRAPHY } from '../../constants/theme';
+import React, { useState } from 'react';
+import {
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+} from 'react-native';
+import { COLORS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { HistoryFilterType } from '../../types/inspection';
 
 interface FilterControlProps {
-  activeFilter: HistoryFilterType;
-  onSelectFilter: (filter: HistoryFilterType) => void;
+  activeStatus: HistoryFilterType;
+  onSelectStatus: (status: HistoryFilterType) => void;
+  activeDefect: string;
+  onSelectDefect: (defect: string) => void;
+  defectOptions?: string[];
   counts?: {
     ALL: number;
     PASS: number;
@@ -16,93 +27,203 @@ interface FilterControlProps {
   };
 }
 
+const STATUS_ITEMS: { key: HistoryFilterType; label: string }[] = [
+  { key: 'ALL', label: 'All Statuses' },
+  { key: 'PASS', label: 'PASS' },
+  { key: 'REWORK', label: 'REWORK' },
+  { key: 'FAIL', label: 'FAIL' },
+  { key: 'UNACKNOWLEDGED', label: 'Unacknowledged' },
+];
+
 export const FilterControl: React.FC<FilterControlProps> = ({
-  activeFilter,
-  onSelectFilter,
+  activeStatus,
+  onSelectStatus,
+  activeDefect,
+  onSelectDefect,
+  defectOptions = [],
   counts,
 }) => {
-  const filters: { key: HistoryFilterType; label: string; icon: any }[] = [
-    { key: 'ALL', label: 'ALL', icon: 'grid-outline' },
-    { key: 'PASS', label: 'PASS', icon: 'checkmark-circle-outline' },
-    { key: 'REWORK', label: 'REWORK', icon: 'alert-circle-outline' },
-    { key: 'FAIL', label: 'FAIL', icon: 'close-circle-outline' },
-    { key: 'UNACKNOWLEDGED', label: 'UNACK', icon: 'warning-outline' },
-  ];
+  const [openDropdown, setOpenDropdown] = useState<'status' | 'defect' | null>(null);
+
+  const currentStatusLabel =
+    STATUS_ITEMS.find((s) => s.key === activeStatus)?.label || 'All Statuses';
+
+  const currentDefectLabel =
+    activeDefect === 'ALL' || !activeDefect ? 'All Defects' : activeDefect;
+
+  const defectList = ['ALL', ...defectOptions.filter((d) => d && d !== 'ALL')];
 
   return (
     <View style={styles.wrapper}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.container}
+      {/* Row containing Status and Defect dropdowns */}
+      <View style={styles.dropdownsRow}>
+        {/* 1. Status Dropdown */}
+        <View style={styles.dropdownGroup}>
+          <Text style={styles.label}>Status:</Text>
+          <TouchableOpacity
+            style={[
+              styles.dropdownButton,
+              activeStatus !== 'ALL' && styles.dropdownButtonActive,
+            ]}
+            onPress={() => setOpenDropdown('status')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.dropdownButtonText} numberOfLines={1}>
+              {currentStatusLabel}
+            </Text>
+            <Ionicons name="chevron-down" size={14} color="#0F172A" style={styles.chevron} />
+          </TouchableOpacity>
+        </View>
+
+        {/* 2. Defect Dropdown */}
+        <View style={styles.dropdownGroup}>
+          <Text style={styles.label}>Defect:</Text>
+          <TouchableOpacity
+            style={[
+              styles.dropdownButton,
+              activeDefect !== 'ALL' && styles.dropdownButtonActive,
+            ]}
+            onPress={() => setOpenDropdown('defect')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.dropdownButtonText} numberOfLines={1}>
+              {currentDefectLabel}
+            </Text>
+            <Ionicons name="chevron-down" size={14} color="#0F172A" style={styles.chevron} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Modal Picker for Status */}
+      <Modal
+        visible={openDropdown === 'status'}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpenDropdown(null)}
       >
-        {filters.map((f) => {
-          const isSelected = activeFilter === f.key;
-          const count = counts ? counts[f.key] : undefined;
-
-          const iconColor = isSelected
-            ? f.key === 'UNACKNOWLEDGED' || f.key === 'FAIL'
-              ? COLORS.fail
-              : f.key === 'REWORK'
-              ? COLORS.rework
-              : f.key === 'PASS'
-              ? COLORS.pass
-              : COLORS.interactive
-            : COLORS.textMuted;
-
-          return (
-            <TouchableOpacity
-              key={f.key}
-              style={[
-                styles.filterPill,
-                isSelected && styles.filterPillActive,
-                f.key === 'UNACKNOWLEDGED' && isSelected && styles.unackPillActive,
-                f.key === 'FAIL' && isSelected && styles.failPillActive,
-                f.key === 'REWORK' && isSelected && styles.reworkPillActive,
-                f.key === 'PASS' && isSelected && styles.passPillActive,
-              ]}
-              onPress={() => onSelectFilter(f.key)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name={f.icon} size={15} color={iconColor} style={{ marginRight: 6 }} />
-              <Text
-                style={[
-                  styles.filterLabel,
-                  isSelected && styles.filterLabelActive,
-                  f.key === 'UNACKNOWLEDGED' && isSelected && { color: COLORS.fail },
-                  f.key === 'FAIL' && isSelected && { color: COLORS.fail },
-                  f.key === 'REWORK' && isSelected && { color: COLORS.rework },
-                  f.key === 'PASS' && isSelected && { color: COLORS.pass },
-                ]}
-              >
-                {f.label}
-              </Text>
-              {count !== undefined && (
-                <View
-                  style={[
-                    styles.countBadge,
-                    isSelected && styles.countBadgeActive,
-                    f.key === 'UNACKNOWLEDGED' && count > 0 && styles.unackCountBadge,
-                    f.key === 'PASS' && isSelected && styles.passCountBadge,
-                    f.key === 'REWORK' && isSelected && styles.reworkCountBadge,
-                    f.key === 'FAIL' && isSelected && styles.failCountBadge,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.countText,
-                      isSelected && styles.countTextActive,
-                      f.key === 'UNACKNOWLEDGED' && count > 0 && { color: '#FFF' },
-                    ]}
+        <TouchableWithoutFeedback onPress={() => setOpenDropdown(null)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalCard}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Filter by Status</Text>
+                  <TouchableOpacity
+                    onPress={() => setOpenDropdown(null)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    {count}
-                  </Text>
+                    <Ionicons name="close" size={20} color={COLORS.textSecondary} />
+                  </TouchableOpacity>
                 </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+
+                <View style={styles.optionsList}>
+                  {STATUS_ITEMS.map((item) => {
+                    const isSelected = activeStatus === item.key;
+                    const count = counts ? counts[item.key] : undefined;
+
+                    return (
+                      <TouchableOpacity
+                        key={item.key}
+                        style={[styles.optionItem, isSelected && styles.optionItemSelected]}
+                        onPress={() => {
+                          onSelectStatus(item.key);
+                          setOpenDropdown(null);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.optionItemText,
+                            isSelected && styles.optionItemTextSelected,
+                          ]}
+                        >
+                          {item.label}
+                        </Text>
+                        <View style={styles.optionRight}>
+                          {count !== undefined && (
+                            <View style={[styles.countBadge, isSelected && styles.countBadgeSelected]}>
+                              <Text style={[styles.countText, isSelected && styles.countTextSelected]}>
+                                {count}
+                              </Text>
+                            </View>
+                          )}
+                          {isSelected && (
+                            <Ionicons
+                              name="checkmark"
+                              size={18}
+                              color={COLORS.interactive}
+                              style={{ marginLeft: 6 }}
+                            />
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Modal Picker for Defect */}
+      <Modal
+        visible={openDropdown === 'defect'}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpenDropdown(null)}
+      >
+        <TouchableWithoutFeedback onPress={() => setOpenDropdown(null)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalCard}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Filter by Defect Type</Text>
+                  <TouchableOpacity
+                    onPress={() => setOpenDropdown(null)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="close" size={20} color={COLORS.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+                  <View style={styles.optionsList}>
+                    {defectList.map((defect) => {
+                      const isAll = defect === 'ALL';
+                      const label = isAll ? 'All Defects' : defect;
+                      const isSelected = activeDefect === defect;
+
+                      return (
+                        <TouchableOpacity
+                          key={defect}
+                          style={[styles.optionItem, isSelected && styles.optionItemSelected]}
+                          onPress={() => {
+                            onSelectDefect(defect);
+                            setOpenDropdown(null);
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Text
+                            style={[
+                              styles.optionItemText,
+                              isSelected && styles.optionItemTextSelected,
+                            ]}
+                          >
+                            {label}
+                          </Text>
+                          {isSelected && (
+                            <Ionicons name="checkmark" size={18} color={COLORS.interactive} />
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </View>
   );
 };
@@ -111,80 +232,121 @@ const styles = StyleSheet.create({
   wrapper: {
     marginBottom: SPACING.md,
   },
-  container: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-    paddingVertical: 2,
-  },
-  filterPill: {
+  dropdownsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: TOUCH_TARGET.minHeight,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    backgroundColor: COLORS.surface,
+    gap: SPACING.md,
+  },
+  dropdownGroup: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#0F172A',
+  },
+  dropdownButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    height: 38,
     ...SHADOWS.sm,
   },
-  filterPillActive: {
-    backgroundColor: COLORS.interactiveMuted,
+  dropdownButtonActive: {
     borderColor: COLORS.interactive,
+    backgroundColor: '#F0F9FF',
   },
-  passPillActive: {
-    backgroundColor: COLORS.passMuted,
-    borderColor: COLORS.passBorder,
+  dropdownButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#0F172A',
+    flex: 1,
   },
-  reworkPillActive: {
-    backgroundColor: COLORS.reworkMuted,
-    borderColor: COLORS.reworkBorder,
+  chevron: {
+    marginLeft: 4,
   },
-  failPillActive: {
-    backgroundColor: COLORS.failMuted,
-    borderColor: COLORS.failBorder,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
   },
-  unackPillActive: {
-    backgroundColor: COLORS.failMuted,
-    borderColor: COLORS.failBorder,
+  modalCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: SPACING.md,
+    ...SHADOWS.card,
   },
-  filterLabel: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    fontWeight: '700',
-    color: COLORS.textSecondary,
-    letterSpacing: 0.8,
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    marginBottom: SPACING.xs,
   },
-  filterLabelActive: {
+  modalTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  optionsList: {
+    paddingVertical: 4,
+  },
+  optionItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginVertical: 2,
+  },
+  optionItemSelected: {
+    backgroundColor: COLORS.interactiveMuted,
+  },
+  optionItemText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  optionItemTextSelected: {
     color: COLORS.interactive,
+    fontWeight: '800',
+  },
+  optionRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   countBadge: {
-    marginLeft: 6,
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
     backgroundColor: COLORS.surfaceSubtle,
   },
-  countBadgeActive: {
+  countBadgeSelected: {
     backgroundColor: COLORS.interactive,
   },
-  passCountBadge: {
-    backgroundColor: COLORS.pass,
-  },
-  reworkCountBadge: {
-    backgroundColor: COLORS.rework,
-  },
-  failCountBadge: {
-    backgroundColor: COLORS.fail,
-  },
-  unackCountBadge: {
-    backgroundColor: COLORS.fail,
-  },
   countText: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
     fontFamily: TYPOGRAPHY.fontFamily.mono,
     color: COLORS.textSecondary,
   },
-  countTextActive: {
-    color: '#FFF',
+  countTextSelected: {
+    color: '#FFFFFF',
   },
 });

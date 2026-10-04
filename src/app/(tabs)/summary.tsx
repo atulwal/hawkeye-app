@@ -1,12 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { EmptyState } from '../../components/common/EmptyState';
@@ -14,6 +11,7 @@ import { IndustrialHeader } from '../../components/common/IndustrialHeader';
 import { DefectDistribution } from '../../components/summary/DefectDistribution';
 import { LengthTrendChart } from '../../components/summary/LengthTrendChart';
 import { StatMetricCard } from '../../components/summary/StatMetricCard';
+import { WidthDistribution } from '../../components/summary/WidthDistribution';
 import { COLORS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { useApp } from '../../context/AppContext';
 import { mockInspectionService } from '../../services/mockInspectionService';
@@ -153,64 +151,29 @@ export default function QualitySummaryScreen() {
                 value={passCount}
                 subValue={`${passRate}%`}
                 variant="pass"
-                icon="checkmark-circle"
               />
               <StatMetricCard
                 label="Rework"
                 value={reworkCount}
                 subValue={`${reworkRate}%`}
                 variant="rework"
-                icon="alert-circle"
               />
               <StatMetricCard
                 label="Rejected"
                 value={failCount}
                 subValue={`${failRate}%`}
                 variant="fail"
-                icon="close-circle"
               />
             </View>
 
             {/* Length Variance Trend Chart */}
             <LengthTrendChart recentBillets={history} />
 
+            {/* Billet Width Distribution Breakdown */}
+            <WidthDistribution history={history} />
+
             {/* Defect Distribution Breakdown */}
             <DefectDistribution defects={defectList} />
-
-            {/* Shift Quick Actions / Settings Links */}
-            <View style={styles.quickLinksCard}>
-              <Text style={styles.quickLinksTitle}>SYSTEM SHORTCUTS</Text>
-
-              <TouchableOpacity
-                style={styles.linkRow}
-                onPress={() => router.push('/(tabs)/log')}
-                activeOpacity={0.7}
-              >
-                <View style={styles.linkIconCol}>
-                  <Ionicons name="list" size={18} color={COLORS.interactive} />
-                </View>
-                <View style={styles.linkTextCol}>
-                  <Text style={styles.linkLabel}>Inspection Log & CSV Export</Text>
-                  <Text style={styles.linkSub}>View full history and export production records</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.linkRow}
-                onPress={() => router.push('/(tabs)/settings')}
-                activeOpacity={0.7}
-              >
-                <View style={styles.linkIconCol}>
-                  <Ionicons name="options" size={18} color={COLORS.interactive} />
-                </View>
-                <View style={styles.linkTextCol}>
-                  <Text style={styles.linkLabel}>Tolerance Limits & Calibration</Text>
-                  <Text style={styles.linkSub}>Configure dimensional targets and camera calibration</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-              </TouchableOpacity>
-            </View>
           </>
         )}
       </ScrollView>
@@ -293,51 +256,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: SPACING.sm,
     marginBottom: SPACING.md,
-  },
-  quickLinksCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
-    ...SHADOWS.card,
-  },
-  quickLinksTitle: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: COLORS.textMuted,
-    letterSpacing: 0.8,
-    marginBottom: SPACING.sm,
-    fontFamily: TYPOGRAPHY.fontFamily.mono,
-  },
-  linkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  linkIconCol: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: COLORS.interactiveMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.md,
-  },
-  linkTextCol: {
-    flex: 1,
-  },
-  linkLabel: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-  },
-  linkSub: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    marginTop: 2,
   },
 });

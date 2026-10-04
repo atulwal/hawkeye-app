@@ -42,6 +42,7 @@ export type HistoryFilterType = 'ALL' | 'PASS' | 'REWORK' | 'FAIL' | 'UNACKNOWLE
 
 export type HistoryFilters = {
   status?: HistoryFilterType;
+  defect?: string;
   searchQuery?: string;
 };
 

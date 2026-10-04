@@ -33,6 +33,7 @@ export default function InspectionRecordsScreen() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<HistoryFilterType>('ALL');
+  const [activeDefect, setActiveDefect] = useState<string>('ALL');
   const [records, setRecords] = useState<Billet[]>([]);
   const [allRawRecords, setAllRawRecords] = useState<Billet[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,6 +49,7 @@ export default function InspectionRecordsScreen() {
 
       const filtered = await mockInspectionService.getHistory({
         status: activeFilter,
+        defect: activeDefect,
         searchQuery,
       });
       setRecords(filtered);
@@ -57,16 +59,18 @@ export default function InspectionRecordsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeFilter, searchQuery]);
+  }, [activeFilter, activeDefect, searchQuery]);
 
   useEffect(() => {
     let isMounted = true;
-    mockInspectionService.getHistory({ status: activeFilter, searchQuery }).then((filtered) => {
-      if (isMounted) {
-        setRecords(filtered);
-        setLoading(false);
-      }
-    });
+    mockInspectionService
+      .getHistory({ status: activeFilter, defect: activeDefect, searchQuery })
+      .then((filtered) => {
+        if (isMounted) {
+          setRecords(filtered);
+          setLoading(false);
+        }
+      });
     mockInspectionService.getHistory().then((all) => {
       if (isMounted) {
         setAllRawRecords(all);
@@ -82,7 +86,7 @@ export default function InspectionRecordsScreen() {
       isMounted = false;
       unsubscribe();
     };
-  }, [activeFilter, searchQuery, fetchRecords]);
+  }, [activeFilter, activeDefect, searchQuery, fetchRecords]);
 
   // Compute live counts
   const counts = {
@@ -213,10 +217,13 @@ export default function InspectionRecordsScreen() {
           </View>
         )}
 
-        {/* 5-Way Filter Tabs */}
+        {/* Status & Defect Dropdown Filters */}
         <FilterControl
-          activeFilter={activeFilter}
-          onSelectFilter={setActiveFilter}
+          activeStatus={activeFilter}
+          onSelectStatus={setActiveFilter}
+          activeDefect={activeDefect}
+          onSelectDefect={setActiveDefect}
+          defectOptions={Array.from(new Set(allRawRecords.flatMap((b) => b.defects).filter(Boolean)))}
           counts={counts}
         />
 
